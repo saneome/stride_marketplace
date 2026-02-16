@@ -1,0 +1,692 @@
+TECHNICAL_SPECIFICATION.md
+markdownDownloadCopy code# Техническое задание — «Доска объявлений б/у товаров»
+
+> **Версия:** 2.0
+> **Дата:** 2026-02-16
+> **Статус:** в разработке
+
+---
+
+## Содержание
+
+1. [Общее описание проекта](#1-общее-описание-проекта)
+2. [Стек технологий](#2-стек-технологий)
+3. [Архитектура](#3-архитектура)
+4. [Модели данных](#4-модели-данных)
+5. [API — публичная часть](#5-api--публичная-часть)
+6. [API — административная часть](#6-api--административная-часть)
+7. [Безопасность](#7-безопасность)
+8. [Docker Compose — структура сервисов](#8-docker-compose--структура-сервисов)
+9. [Структура проекта (файловая)](#9-структура-проекта-файловая)
+10. [Миграции и начальные данные](#10-миграции-и-начальные-данные)
+11. [Требования к dev-окружению](#11-требования-к-dev-окружению)
+12. [Логирование и мониторинг](#12-логирование-и-мониторинг)
+13. [Резервное копирование](#13-резервное-копирование)
+14. [Соглашения по API](#14-соглашения-по-api)
+15. [Порядок реализации (приоритет)](#15-порядок-реализации-приоритет)
+
+---
+
+## 1. Общее описание проекта
+
+Веб-приложение представляет собой площадку для размещения и поиска объявлений
+о продаже бывших в употреблении товаров. Система включает **публичную часть**
+(доступна всем пользователям из интернета) и **административную панель**
+(доступна только из внутренней сети / через VPN).
+
+---
+
+## 2. Стек технологий
+
+| Слой | Технологии |
+|------|-----------|
+| **Бэкенд** | Python 3.12+, FastAPI, SQLAlchemy 2.x (async), Alembic, Pydantic v2 |
+| **База данных** | PostgreSQL 16 |
+| **Кэширование / очереди** | Redis 7 |
+| **Фронтенд (публичная часть)** | На усмотрение (React / Vue / серверный рендеринг Jinja2. Tailwind CSS) |
+| **Фронтенд (админ-панель)** | Отдельное SPA (React или Vue), изолированный Docker-контейнер |
+| **Хранение файлов** | MinIO (S3-совместимое) или локальная ФС с Docker volume |
+| **Обработка изображений** | Pillow |
+| **Контейнеризация** | Docker, Docker Compose |
+| **Реверс-прокси** | Nginx |
+| **VPN** | WireGuard |
+| **CI/CD** | GitHub Actions (линтинг, тесты, сборка образов) |
+| **Тестирование** | pytest, pytest-asyncio, httpx (AsyncClient), factory_boy |
+| **Линтинг / форматирование** | ruff, mypy |
+| **Хэширование паролей** | Argon2id (библиотека `argon2-cffi`) |
+
+---
+
+## 3. Архитектура
+
+Интернет
+│
+▼
+┌─────────┐
+│  Nginx  │ :80 / :443
+└────┬────┘
+│
+├──── /api/*          ──▶ backend (FastAPI)      :8000
+├──── /               ──▶ frontend-public        :3000
+├──── /uploads/*      ──▶ minio / static volume
+│
+│  (deny all для /admin/* снаружи)
+│
+└──── внутренняя Docker-сеть ──────────────────────┐
+│
+WireGuard :51820/udp ──▶ внутренняя сеть ──┐            │
+▼            ▼
+admin-frontend ──▶ backend /admin/api/*
+:5173           :8000
+PostgreSQL :5432 (только внутренняя сеть)
+Redis      :6379 (только внутренняя сеть)
+MinIO      :9000 (только внутренняя сеть, консоль :9001)
+
+Все сервисы объединены во **внутреннюю Docker-сеть**. Наружу проброшены только
+порты Nginx (80, 443) и WireGuard (51820/udp). Ни один другой сервис не имеет
+прямого выхода в интернет.
+
+**Docker-сети:** `external` (nginx, wireguard → интернет) и `internal`
+(все сервисы). Nginx и WireGuard являются мостами между сетями.
+
+---
+
+## 4. Модели данных
+
+### 4.1. User
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `id` | UUID, PK | |
+| `email` | String, unique, indexed | |
+| `phone` | String, nullable | |
+| `hashed_password` | String | Argon2id hash |
+| `display_name` | String | |
+| `avatar_url` | String, nullable | |
+| `role` | Enum: `user`, `moderator`, `admin` | Default: `user` |
+| `is_active` | Boolean | Default: `true` |
+| `totp_secret` | String, nullable | Для 2FA (TOTP) |
+| `totp_enabled` | Boolean | Default: `false` |
+| `created_at` | DateTime | |
+| `updated_at` | DateTime | |
+
+### 4.2. Category
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `id` | Integer, PK | |
+| `name` | String | |
+| `slug` | String, unique, indexed | |
+| `parent_id` | Integer, FK → Category, nullable | Вложенные категории |
+| `sort_order` | Integer | Default: 0 |
+| `is_active` | Boolean | Default: `true` |
+
+### 4.3. Listing (объявление)
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `id` | UUID, PK | |
+| `title` | String(200) | |
+| `description` | Text | |
+| `price` | Decimal(12,2) | |
+| `currency` | String(3) | Default: `RUB` |
+| `condition` | Enum: `new`, `like_new`, `used`, `for_parts` | |
+| `category_id` | FK → Category | |
+| `author_id` | FK → User | |
+| `status` | Enum: `draft`, `moderation`, `active`, `rejected`, `sold`, `archived` | |
+| `reject_reason` | Text, nullable | Причина отклонения модератором |
+| `location` | String | Город/район |
+| `views_count` | Integer | Default: 0 |
+| `created_at` | DateTime | |
+| `updated_at` | DateTime | |
+| `published_at` | DateTime, nullable | Устанавливается при `status → active` |
+
+**Индексы:** `(status, published_at DESC)` — для выборки активных объявлений;
+`(category_id, status)` — для фильтрации по категории;
+`(author_id, status)` — для профиля пользователя.
+Полнотекстовый поиск: PostgreSQL `GIN`-индекс по `tsvector(title || description)`.
+
+### 4.4. ListingImage
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `id` | UUID, PK | |
+| `listing_id` | FK → Listing, indexed | ON DELETE CASCADE |
+| `url` | String | Путь в MinIO / ФС |
+| `thumbnail_url` | String, nullable | Превью (ресайз) |
+| `sort_order` | Integer | Default: 0 |
+| `is_cover` | Boolean | Default: `false` |
+
+### 4.5. Favorite
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `id` | UUID, PK | |
+| `user_id` | FK → User | |
+| `listing_id` | FK → Listing | ON DELETE CASCADE |
+| `created_at` | DateTime | |
+
+**Constraint:** `UNIQUE(user_id, listing_id)`.
+
+### 4.6. Message
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `id` | UUID, PK | |
+| `sender_id` | FK → User | |
+| `recipient_id` | FK → User | |
+| `listing_id` | FK → Listing, nullable | Привязка к объявлению |
+| `body` | Text | |
+| `is_read` | Boolean | Default: `false` |
+| `created_at` | DateTime, indexed | |
+
+**Индексы:** `(sender_id, recipient_id, created_at)` — для выборки диалогов.
+
+### 4.7. AuditLog (журнал действий администраторов)
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `id` | UUID, PK | |
+| `user_id` | FK → User | Кто совершил действие |
+| `action` | String | Название действия (`listing.approve`, `user.ban`, …) |
+| `entity_type` | String | `listing`, `user`, `category` |
+| `entity_id` | String | ID затронутой сущности |
+| `details` | JSONB, nullable | Изменённые поля (before/after) |
+| `ip_address` | String | |
+| `created_at` | DateTime | |
+
+### 4.8. Notification (уведомления)
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `id` | UUID, PK | |
+| `user_id` | FK → User | Получатель |
+| `type` | Enum: `listing_approved`, `listing_rejected`, `new_message`, `new_favorite` | |
+| `payload` | JSONB | Контекст (listing_id, message_id, …) |
+| `is_read` | Boolean | Default: `false` |
+| `created_at` | DateTime | |
+
+---
+
+## 5. API — публичная часть
+
+Все эндпоинты под префиксом `/api/v1/`.
+
+### 5.1. Аутентификация (`/api/v1/auth`)
+
+| Метод | Путь | Описание |
+|-------|------|----------|
+| POST | `/register` | Регистрация (email + пароль). Возвращает `201`. |
+| POST | `/login` | Вход. Возвращает пару `access` / `refresh` JWT. Если у пользователя включена 2FA — возвращает `202` с промежуточным `totp_token` и требует прохождения `/login/totp`. |
+| POST | `/login/totp` | Подтверждение TOTP-кода после пароля. Принимает `totp_token` + `code`. Возвращает JWT-пару. |
+| POST | `/refresh` | Обновление access-токена по refresh-токену. |
+| POST | `/logout` | Инвалидация refresh-токена (Redis blacklist). |
+| POST | `/request-password-reset` | Отправка ссылки на сброс пароля на email. |
+| POST | `/reset-password` | Установка нового пароля по одноразовому токену. |
+
+### 5.2. Двухфакторная аутентификация (`/api/v1/auth/totp`)
+
+| Метод | Путь | Описание |
+|-------|------|----------|
+| POST | `/enable` | Генерирует `totp_secret`, возвращает QR-код (base64) и секрет. Требует подтверждения через `/confirm`. |
+| POST | `/confirm` | Принимает TOTP-код, активирует 2FA (`totp_enabled = true`). Возвращает набор одноразовых recovery-кодов. |
+| POST | `/disable` | Отключение 2FA (требует текущий TOTP-код + пароль). Для `admin` запрещено. |
+
+### 5.3. Профиль (`/api/v1/users`)
+
+| Метод | Путь | Описание |
+|-------|------|----------|
+| GET | `/me` | Текущий пользователь. |
+| PATCH | `/me` | Обновление профиля (display_name, phone, avatar). |
+| PATCH | `/me/password` | Смена пароля (old_password + new_password). |
+| GET | `/{id}/listings` | Публичные активные объявления пользователя. |
+| GET | `/{id}` | Публичный профиль (display_name, avatar, дата регистрации). |
+
+### 5.4. Объявления (`/api/v1/listings`)
+
+| Метод | Путь | Описание |
+|-------|------|----------|
+| GET | `/` | Список. Пагинация (cursor-based или offset). Фильтры: `category_id`, `price_min`, `price_max`, `condition`, `location`, `q` (полнотекстовый поиск). Сортировка: `created_at`, `price`, `views_count`. |
+| GET | `/{id}` | Детальная страница. Инкремент `views_count` (debounce через Redis — не чаще 1 раза в 10 мин с одного IP/user). |
+| POST | `/` | Создание (авторизация обязательна). Статус → `moderation`. |
+| PATCH | `/{id}` | Редактирование (только автор, только статусы `draft` / `rejected`). При редактировании статус возвращается в `moderation`. |
+| DELETE | `/{id}` | Мягкое удаление → `archived` (автор, модератор, админ). |
+| PATCH | `/{id}/status` | Смена статуса автором: `active → sold`, `active → archived`, `draft → moderation`. |
+| POST | `/{id}/images` | Загрузка изображений (multipart, до 10 штук на объявление). |
+| PATCH | `/{id}/images/reorder` | Перестановка порядка изображений. |
+| DELETE | `/{id}/images/{image_id}` | Удаление изображения. |
+
+### 5.5. Избранное (`/api/v1/favorites`)
+
+| Метод | Путь | Описание |
+|-------|------|----------|
+| POST | `/{listing_id}` | Добавить в избранное. |
+| DELETE | `/{listing_id}` | Убрать из избранного. |
+| GET | `/` | Список избранного текущего пользователя (пагинация). |
+
+### 5.6. Сообщения (`/api/v1/messages`)
+
+| Метод | Путь | Описание |
+|-------|------|----------|
+| POST | `/` | Отправить сообщение (recipient_id, listing_id?, body). |
+| GET | `/conversations` | Список диалогов (последнее сообщение, кол-во непрочитанных). |
+| GET | `/conversations/{user_id}` | История с конкретным пользователем (пагинация, cursor-based). |
+| PATCH | `/conversations/{user_id}/read` | Пометить диалог прочитанным. |
+
+### 5.7. Категории (`/api/v1/categories`)
+
+| Метод | Путь | Описание |
+|-------|------|----------|
+| GET | `/` | Дерево категорий (вложенная структура). |
+| GET | `/{slug}` | Категория по slug с дочерними. |
+
+### 5.8. Уведомления (`/api/v1/notifications`)
+
+| Метод | Путь | Описание |
+|-------|------|----------|
+| GET | `/` | Список уведомлений текущего пользователя (пагинация). |
+| GET | `/unread-count` | Количество непрочитанных. |
+| PATCH | `/{id}/read` | Пометить одно уведомление прочитанным. |
+| PATCH | `/read-all` | Пометить все прочитанными. |
+
+---
+
+## 6. API — административная часть
+
+Все эндпоинты под префиксом `/admin/api/v1/`. Доступ ограничен ролями
+`moderator` и `admin`. Для роли `admin` обязательна двухфакторная
+аутентификация (TOTP). Каждое мутирующее действие записывается в `AuditLog`.
+
+### 6.1. Модерация объявлений
+
+| Метод | Путь | Описание |
+|-------|------|----------|
+| GET | `/listings` | Список объявлений (фильтр по статусу, автору, дате). По умолчанию `status=moderation`. |
+| GET | `/listings/{id}` | Детали объявления (включая историю статусов). |
+| PATCH | `/listings/{id}/approve` | Одобрить → `active`, устанавливает `published_at`. |
+| PATCH | `/listings/{id}/reject` | Отклонить → `rejected` (обязательное поле `reason`). |
+| DELETE | `/listings/{id}` | Полное удаление (только `admin`). |
+
+### 6.2. Управление пользователями
+
+| Метод | Путь | Описание |
+|-------|------|----------|
+| GET | `/users` | Список (поиск по email/имени, фильтры по роли, статусу). |
+| GET | `/users/{id}` | Детали пользователя + статистика (кол-во объявлений, дата последнего входа). |
+| PATCH | `/users/{id}` | Изменение роли, блокировка (`is_active = false`). Повышение до `admin` — только другой `admin`. |
+
+### 6.3. Управление категориями
+
+| Метод | Путь | Описание |
+|-------|------|----------|
+| POST | `/categories` | Создание. |
+| PATCH | `/categories/{id}` | Редактирование (name, slug, parent_id, sort_order, is_active). |
+| DELETE | `/categories/{id}` | Удаление (только если нет привязанных активных объявлений). |
+
+### 6.4. Аудит
+
+| Метод | Путь | Описание |
+|-------|------|----------|
+| GET | `/audit-log` | Журнал действий (фильтры: user_id, action, entity_type, date range). |
+
+### 6.5. Статистика (дашборд)
+
+| Метод | Путь | Описание |
+|-------|------|----------|
+| GET | `/stats/dashboard` | Кол-во объявлений по статусам, новых пользователей, объявлений за сегодня/неделю/месяц, топ категорий. |
+
+---
+
+## 7. Безопасность
+
+### 7.1. Сетевая изоляция админки
+
+Nginx блокирует все запросы на `/admin/*` из внешней сети (`deny all`).
+Доступ к админ-панели возможен только из внутренней Docker-сети, в которую
+пользователь попадает через WireGuard VPN (порт `51820/udp`) или из локальной
+сети сервера.
+
+### 7.2. Аутентификация и авторизация
+
+JWT-токены: `access` — 15 мин, `refresh` — 7 дней. Refresh-токены хранятся в Redis
+с TTL и возможностью мгновенной инвалидации. При смене пароля или блокировке
+пользователя все его refresh-токены инвалидируются.
+
+Роли: `user`, `moderator`, `admin`. FastAPI-зависимости (`Depends`) проверяют
+роль на уровне маршрутов. Middleware логирует все мутирующие действия в админке
+в таблицу `AuditLog`.
+
+### 7.3. Двухфакторная аутентификация (2FA)
+
+Реализуется через TOTP (библиотека `pyotp`, RFC 6238). При включении 2FA
+пользователю выдаётся QR-код для Google Authenticator / Aegis / любого
+TOTP-клиента. При логине, если у пользователя `totp_enabled = true`, после
+проверки пароля сервер возвращает промежуточный `totp_token` (JWT, TTL 5 мин)
+и требует прохождения `/login/totp`. Для роли `admin` включение 2FA обязательно.
+При активации 2FA генерируются одноразовые recovery-коды (8 штук), хранятся
+в БД в виде Argon2id-хешей.
+
+### 7.4. Хэширование паролей
+
+**Argon2id** (библиотека `argon2-cffi`). Параметры по умолчанию из
+`argon2-cffi` (memory cost 65536 KiB, time cost 3, parallelism 4).
+Обоснование выбора: Argon2id — победитель Password Hashing Competition,
+устойчив к GPU- и ASIC-атакам благодаря memory-hard алгоритму, рекомендован
+OWASP. Bcrypt остаётся приемлемой альтернативой, но Argon2id предпочтительнее
+для новых проектов.
+
+### 7.5. Общие меры
+
+**Rate limiting:** на эндпоинты аутентификации — 5 попыток/мин на IP через
+Redis (`sliding window`). На остальные мутирующие эндпоинты — 30 req/min.
+
+**CORS:** настроен на список разрешённых доменов (`ALLOWED_ORIGINS` из `.env`).
+На `/admin/api/*` CORS отключён (запросы только из внутренней сети).
+
+**HTTP-заголовки безопасности (Nginx):**
+`X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`,
+`X-XSS-Protection: 1; mode=block`, `Referrer-Policy: strict-origin-when-cross-origin`,
+`Content-Security-Policy` (настраивается под фронтенд),
+`Strict-Transport-Security: max-age=63072000; includeSubDomains`.
+
+**Валидация входных данных:** Pydantic v2 на всех эндпоинтах. Максимальная длина
+строк задаётся явно. `title` — до 200 символов, `description` — до 10 000,
+`body` (сообщения) — до 5 000.
+
+**Загрузка файлов:** проверка MIME-типа (допускаются `image/jpeg`, `image/png`,
+`image/webp`), ограничение размера — 5 МБ на файл, максимум 10 файлов на
+объявление. Генерация уникальных имён (`UUID`). При загрузке создаётся
+thumbnail (400×400, WebP) через Pillow. Оригинал сохраняется без изменений.
+
+**HTTPS:** сертификаты Let's Encrypt (`certbot`), Nginx терминирует TLS.
+Автоматическое обновление сертификатов через cron или docker-контейнер certbot.
+
+**Защита от перебора:** при 10 неудачных попытках входа для одного email за 15 мин —
+блокировка входа для этого email на 30 мин (Redis key).
+
+---
+
+## 8. Docker Compose — структура сервисов
+
+```yaml
+services:
+  nginx:
+    # Реверс-прокси. Порты :80/:443 наружу.
+    # Сети: external, internal
+    restart: unless-stopped
+
+  backend:
+    # FastAPI. Только internal.
+    # Healthcheck: GET /api/v1/health
+    restart: unless-stopped
+
+  frontend-public:
+    # Публичный фронтенд. Только internal.
+    restart: unless-stopped
+
+  admin-frontend:
+    # Админ-панель SPA. Только internal.
+    restart: unless-stopped
+
+  postgres:
+    # PostgreSQL 16. Только internal.
+    # Volume: pgdata
+    restart: unless-stopped
+
+  redis:
+    # Redis 7. Только internal.
+    # Volume: redisdata
+    # Параметр: maxmemory-policy allkeys-lru
+    restart: unless-stopped
+
+  minio:
+    # MinIO. Только internal.
+    # Volume: miniodata
+    # Консоль :9001 доступна только через VPN.
+    restart: unless-stopped
+
+  wireguard:
+    # WireGuard VPN. Порт :51820/udp наружу.
+    # Сети: external, internal
+    restart: unless-stopped
+
+networks:
+  external:
+    driver: bridge
+  internal:
+    driver: bridge
+    internal: true   # запрещает выход в интернет
+
+
+9. Структура проекта (файловая)
+project/
+├── docker-compose.yml
+├── docker-compose.override.yml       # dev-окружение (hot reload, debug)
+├── .env.example
+├── .github/
+│   └── workflows/
+│       ├── ci.yml                    # lint + tests на каждый PR
+│       └── deploy.yml                # сборка образов, деплой
+├── nginx/
+│   ├── nginx.conf
+│   ├── conf.d/
+│   │   ├── public.conf
+│   │   └── admin.conf
+│   └── snippets/
+│       └── security-headers.conf
+├── backend/
+│   ├── Dockerfile
+│   ├── pyproject.toml                # зависимости, настройки ruff/mypy
+│   ├── alembic.ini
+│   ├── alembic/
+│   │   ├── env.py
+│   │   └── versions/
+│   ├── app/
+│   │   ├── __init__.py
+│   │   ├── main.py                   # FastAPI app factory
+│   │   ├── config.py                 # Pydantic Settings (из .env)
+│   │   ├── database.py               # async engine, sessionmaker
+│   │   ├── models/
+│   │   │   ├── __init__.py
+│   │   │   ├── user.py
+│   │   │   ├── listing.py
+│   │   │   ├── category.py
+│   │   │   ├── favorite.py
+│   │   │   ├── message.py
+│   │   │   ├── audit_log.py
+│   │   │   └── notification.py
+│   │   ├── schemas/                  # Pydantic schemas (request / response)
+│   │   │   ├── __init__.py
+│   │   │   ├── auth.py
+│   │   │   ├── user.py
+│   │   │   ├── listing.py
+│   │   │   ├── category.py
+│   │   │   ├── message.py
+│   │   │   └── common.py            # PaginatedResponse, ErrorResponse
+│   │   ├── api/
+│   │   │   ├── deps.py               # get_current_user, require_role, etc.
+│   │   │   ├── public/
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── auth.py
+│   │   │   │   ├── users.py
+│   │   │   │   ├── listings.py
+│   │   │   │   ├── favorites.py
+│   │   │   │   ├── messages.py
+│   │   │   │   ├── categories.py
+│   │   │   │   └── notifications.py
+│   │   │   └── admin/
+│   │   │       ├── __init__.py
+│   │   │       ├── listings.py
+│   │   │       ├── users.py
+│   │   │       ├── categories.py
+│   │   │       ├── audit.py
+│   │   │       └── stats.py
+│   │   ├── services/                 # бизнес-логика
+│   │   │   ├── auth_service.py
+│   │   │   ├── listing_service.py
+│   │   │   ├── user_service.py
+│   │   │   ├── message_service.py
+│   │   │   ├── notification_service.py
+│   │   │   └── file_service.py
+│   │   ├── security/
+│   │   │   ├── jwt.py                # создание / валидация JWT
+│   │   │   ├── password.py           # Argon2id hashing / verify
+│   │   │   └── totp.py               # TOTP generation / verification
+│   │   ├── middleware/
+│   │   │   ├── rate_limit.py
+│   │   │   └── audit.py              # логирование действий в админке
+│   │   └── utils/
+│   │       ├── upload.py             # загрузка в MinIO / ФС
+│   │       ├── resize.py             # Pillow thumbnail
+│   │       └── email.py              # отправка email (reset password, etc.)
+│   ├── tests/
+│   │   ├── conftest.py               # фикстуры, TestClient, test DB
+│   │   ├── factories.py              # factory_boy фабрики
+│   │   ├── test_auth.py
+│   │   ├── test_listings.py
+│   │   ├── test_admin.py
+│   │   └── ...
+│   └── seed.py                       # начальные данные
+├── frontend-public/
+│   ├── Dockerfile
+│   ├── package.json
+│   └── src/
+├── admin-frontend/
+│   ├── Dockerfile
+│   ├── package.json
+│   └── src/
+└── wireguard/
+    └── config/
+
+
+10. Миграции и начальные данные
+При первом запуске Alembic применяет все миграции (alembic upgrade head).
+Seed-скрипт (python -m app.seed) создаёт:
+
+* Суперпользователя (admin) с данными из переменных окружения
+(ADMIN_EMAIL, ADMIN_PASSWORD). Для admin сразу генерируется
+totp_secret — при первом входе обязательно настроить 2FA.
+* Базовый набор категорий (электроника, одежда, мебель, авто, и т.д.)
+с корректными slug и вложенностью.
+
+Скрипт идемпотентен — не дублирует данные при повторном запуске
+(проверка по email / slug перед вставкой).
+
+11. Требования к dev-окружению
+Файл docker-compose.override.yml обеспечивает:
+
+* Hot reload для backend (uvicorn --reload, volume mount ./backend/app).
+* Hot reload для фронтендов (Vite HMR, volume mount src/).
+* Проброс порта PostgreSQL (:5432) наружу для отладки через DBeaver / pgAdmin.
+* Проброс порта Redis (:6379) наружу для Redis Insight.
+* Проброс порта MinIO Console (:9001) наружу.
+* Отключённый HTTPS (plain HTTP на :80).
+* Переменная DEBUG=true — расширенные логи, stack traces в ответах.
+
+
+12. Логирование и мониторинг
+Структурированные логи в формате JSON (structlog или python-json-logger).
+Каждая запись содержит: timestamp, level, message, request_id (UUID,
+генерируется middleware для каждого запроса), user_id (если авторизован),
+method, path, status_code, duration_ms.
+Логи пишутся в stdout/stderr (Docker собирает их автоматически).
+Healthcheck-эндпоинты:
+
+* GET /api/v1/health — проверка backend (соединение с БД, Redis).
+* Docker healthcheck для каждого сервиса в docker-compose.yml.
+
+Метрики (опционально, Этап 6+): Prometheus endpoint (/metrics) через
+prometheus-fastapi-instrumentator. Grafana-дашборд для визуализации.
+
+13. Резервное копирование
+PostgreSQL: ежедневный pg_dump через cron-контейнер (или host cron).
+Хранение: последние 7 ежедневных + 4 еженедельных дампа. Дампы шифруются
+GPG и копируются во внешнее хранилище (S3 / удалённый сервер).
+MinIO / файлы: синхронизация mc mirror на внешнее хранилище (ежедневно).
+Redis: персистентность не критична (кэш + blacklist токенов). RDB-снимки
+включены на уровне конфигурации Redis для быстрого восстановления.
+
+14. Соглашения по API
+Формат успешного ответа
+jsonDownloadCopy code{
+  "data": { ... },
+  "meta": {
+    "page": 1,
+    "per_page": 20,
+    "total": 150,
+    "total_pages": 8
+  }
+}
+Для одиночных объектов meta отсутствует, ответ содержит только data.
+Для списков meta содержит информацию о пагинации.
+Формат ошибки
+jsonDownloadCopy code{
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Описание для разработчика",
+    "details": [
+      {
+        "field": "email",
+        "message": "Некорректный формат email"
+      }
+    ]
+  }
+}
+HTTP-коды
+КодИспользование200Успешный GET, PATCH201Успешный POST (создание ресурса)202Требуется дополнительный шаг (2FA)204Успешный DELETE400Ошибка валидации401Не авторизован403Нет доступа (роль)404Ресурс не найден409Конфликт (дубликат email, и т.д.)429Rate limit500Внутренняя ошибка
+Версионирование
+Префикс /api/v1/. При кардинальных изменениях — /api/v2/, старая версия
+поддерживается минимум 3 месяца.
+
+15. Порядок реализации (приоритет)
+Этап 1 — Каркас
+Docker Compose со всеми сервисами, Nginx-конфигурация, подключение к БД,
+Alembic, все модели данных, seed-скрипт, healthcheck-эндпоинт,
+структурированное логирование, CI (lint + typecheck).
+Этап 2 — Аутентификация
+Регистрация, логин, JWT (access + refresh), инвалидация токенов,
+роли и permissions, 2FA (TOTP) для админов, сброс пароля, rate limiting
+на auth-эндпоинты.
+Этап 3 — CRUD объявлений
+Создание, редактирование, удаление, смена статуса, загрузка и удаление
+изображений (MinIO + thumbnail), пагинация, фильтры, полнотекстовый поиск
+(PostgreSQL tsvector), категории (дерево).
+Этап 4 — Админка
+Админ-фронтенд (SPA), модерация объявлений (approve / reject), управление
+пользователями (блокировка, смена ролей), управление категориями,
+дашборд со статистикой, журнал аудита.
+Этап 5 — Дополнительные функции
+Избранное, личные сообщения, уведомления, публичный профиль пользователя.
+Этап 6 — Безопасность и деплой
+WireGuard-конфигурация, HTTPS (Let's Encrypt), security headers,
+CI/CD (автоматическая сборка образов, деплой), резервное копирование,
+документация API (Swagger / ReDoc — уже встроено в FastAPI).
+
+---
+
+**Что изменено / добавлено по сравнению с исходной версией:**
+
+- **Argon2id вместо bcrypt** — в разделах 2, 7.4 и структуре проекта (`security/password.py`)
+- **Версионирование API** — все эндпоинты под `/api/v1/`, описана стратегия миграции
+- **Модели AuditLog и Notification** — разделы 4.7, 4.8
+- **Эндпоинты 2FA** — `/api/v1/auth/totp/enable`, `confirm`, `disable` (раздел 5.2)
+- **Recovery-коды** для 2FA (раздел 7.3)
+- **Эндпоинт смены статуса автором** — `PATCH /listings/{id}/status` (раздел 5.4)
+- **Эндпоинт перестановки изображений** — `PATCH /listings/{id}/images/reorder`
+- **Уведомления** — полный CRUD (раздел 5.8)
+- **Аудит в админке** — `GET /admin/api/v1/audit-log` (раздел 6.4)
+- **Debounce views_count** — через Redis, не чаще 1 раза в 10 мин
+- **Защита от брутфорса** — блокировка email после 10 неудач (раздел 7.5)
+- **HTTP security headers** — CSP, HSTS и другие (раздел 7.5)
+- **Соглашения по API** — формат ответов, ошибок, HTTP-коды (раздел 14)
+- **Логирование и мониторинг** — structlog, request_id, healthcheck (раздел 12)
+- **Резервное копирование** — pg_dump, MinIO mirror, GPG (раздел 13)
+- **Индексы БД** — описаны для Listing (раздел 4.3)
+- **Полнотекстовый поиск** — PostgreSQL GIN-индекс
+- **Тестирование** — добавлено в стек и структуру проекта
+- **`is_active` для Category** — мягкое отключение категорий
+- **`thumbnail_url` для ListingImage** — превью при загрузке
+- **`reject_reason` для Listing** — хранение причины отклонения
+- **`totp_enabled` для User** — явный флаг 2FA
+- **Смена пароля** — `PATCH /users/me/password`
+- **Пометить диалог прочитанным** — `PATCH /conversations/{user_id}/read`

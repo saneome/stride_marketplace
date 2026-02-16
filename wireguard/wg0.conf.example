@@ -1,0 +1,13 @@
+# WireGuard Configuration
+# This file will be generated automatically on first run
+# DO NOT edit manually
+
+[Interface]
+Address = 10.0.0.1/24
+PrivateKey = <SERVER_PRIVATE_KEY>
+ListenPort = 51820
+
+[Peer]
+# Peer 1
+PublicKey = <PEER_PUBLIC_KEY>
+AllowedIPs = 10.0.0.2/32
