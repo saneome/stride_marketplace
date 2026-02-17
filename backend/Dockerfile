@@ -1,4 +1,4 @@
-FROM python:3.12-slim
+FROM python:3.13-slim
 
 WORKDIR /app
 
@@ -14,7 +14,7 @@ COPY pyproject.toml ./
 RUN pip install --no-cache-dir -e .
 
 # Development stage
-FROM python:3.12-slim as development
+FROM python:3.13-slim as development
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y \

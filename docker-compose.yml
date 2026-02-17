@@ -1,8 +1,6 @@
-version: '3.9'
-
 services:
   nginx:
-    image: nginx:1.25-alpine
+    image: nginx:1.27-alpine
     container_name: marketplace_nginx
     restart: unless-stopped
     ports:
@@ -70,13 +68,14 @@ services:
     build:
       context: ./admin-frontend
       dockerfile: Dockerfile
+      target: production
     container_name: marketplace_admin_frontend
     restart: unless-stopped
     networks:
       - internal
 
   postgres:
-    image: postgres:16-alpine
+    image: postgres:17-alpine
     container_name: marketplace_postgres
     restart: unless-stopped
     environment:
@@ -94,7 +93,7 @@ services:
       retries: 5
 
   redis:
-    image: redis:7-alpine
+    image: redis:8-alpine
     container_name: marketplace_redis
     restart: unless-stopped
     command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
@@ -127,7 +126,7 @@ services:
       retries: 3
 
   wireguard:
-    image: linuxserver/wireguard:latest
+    image: lscr.io/linuxserver/wireguard:latest
     container_name: marketplace_wireguard
     restart: unless-stopped
     cap_add:
