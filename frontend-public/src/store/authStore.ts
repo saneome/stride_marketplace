@@ -6,7 +6,10 @@ interface User {
   email: string
   firstName: string | null
   lastName: string | null
+  displayName: string | null
+  phone: string | null
   avatarUrl: string | null
+  createdAt?: string
 }
 
 interface AuthState {
@@ -20,6 +23,8 @@ interface AuthState {
   register: (email: string, password: string, firstName: string, lastName?: string) => Promise<void>
   logout: () => void
   clearError: () => void
+  updateUser: (userData: Partial<User>) => void
+  updateUser: (userData: Partial<User>) => void
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -49,8 +54,15 @@ export const useAuthStore = create<AuthState>()(
           }
 
           const data = await response.json()
+          // Save token to localStorage
+          localStorage.setItem('access_token', data.access_token)
           set({
-            user: data.user,
+            user: {
+              ...data.user,
+              displayName: data.user.firstName,
+              phone: data.user.phone || null,
+              createdAt: data.user.createdAt,
+            },
             token: data.access_token,
             isAuthenticated: true,
             isLoading: false,
@@ -87,8 +99,15 @@ export const useAuthStore = create<AuthState>()(
           }
 
           const data = await response.json()
+          // Save token to localStorage
+          localStorage.setItem('access_token', data.access_token)
           set({
-            user: data.user,
+            user: {
+              ...data.user,
+              displayName: data.user.firstName,
+              phone: data.user.phone || null,
+              createdAt: data.user.createdAt,
+            },
             token: data.access_token,
             isAuthenticated: true,
             isLoading: false,
@@ -103,17 +122,42 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      logout: () => {
-        set({
-          user: null,
-          token: null,
-          isAuthenticated: false,
-          error: null,
-        })
+      logout: async () => {
+        try {
+          const token = localStorage.getItem('access_token')
+          if (token) {
+            // Call logout endpoint to blacklist token
+            await fetch(`${import.meta.env.VITE_API_URL}/api/v1/auth/logout`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+              },
+            })
+          }
+        } catch (error) {
+          console.error('Logout API call failed:', error)
+        } finally {
+          // Clear local state regardless of API call result
+          localStorage.removeItem('access_token')
+          localStorage.removeItem('refresh_token')
+          localStorage.removeItem('user')
+          set({
+            user: null,
+            token: null,
+            isAuthenticated: false,
+            error: null,
+          })
+        }
       },
 
       clearError: () => {
         set({ error: null })
+      },
+
+      updateUser: (userData: Partial<User>) => {
+        set((state) => ({
+          user: state.user ? { ...state.user, ...userData } : null
+        }))
       },
     }),
     {

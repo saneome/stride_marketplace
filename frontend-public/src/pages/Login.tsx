@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
+import { motion } from 'framer-motion'
+import { Mail, Lock, ArrowRight, Bike } from 'lucide-react'
 import { useAuthStore } from '../store/authStore'
 
 export default function Login() {
@@ -31,59 +33,100 @@ export default function Login() {
   }
 
   return (
-    <div className="max-w-md mx-auto">
-      <h1 className="text-3xl font-bold mb-6">Вход</h1>
-      
-      {error && (
-        <div className="mb-4 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg">
-          {error}
-        </div>
-      )}
-      
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Email
-          </label>
-          <input
-            type="email"
-            name="email"
-            value={formData.email}
-            onChange={handleChange}
-            required
-            className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="your@email.com"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Пароль
-          </label>
-          <input
-            type="password"
-            name="password"
-            value={formData.password}
-            onChange={handleChange}
-            required
-            className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="••••••••"
-          />
-        </div>
-        <button
-          type="submit"
-          disabled={isLoading}
-          className="w-full px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed"
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      className="max-w-md mx-auto"
+    >
+      <div className="text-center mb-8">
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+          className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center shadow-xl"
         >
-          {isLoading ? 'Вход...' : 'Войти'}
-        </button>
-      </form>
+          <Bike className="w-10 h-10 text-white" />
+        </motion.div>
+        <h1 className="text-4xl font-bold gradient-text mb-2">Добро пожаловать</h1>
+        <p className="text-gray-600 dark:text-gray-400">Войдите в свой аккаунт SportMarket</p>
+      </div>
       
-      <p className="mt-4 text-center text-gray-600">
-        Нет аккаунта?{' '}
-        <Link to="/register" className="text-blue-600 hover:text-blue-700">
-          Зарегистрироваться
-        </Link>
-      </p>
-    </div>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.5, delay: 0.2 }}
+        className="glass-card p-8"
+      >
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6 p-4 bg-red-50/80 dark:bg-red-900/20 backdrop-blur-sm border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 rounded-xl"
+          >
+            {error}
+          </motion.div>
+        )}
+        
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Email
+            </label>
+            <div className="relative">
+              <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-500" />
+              <input
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                required
+                className="input-field pl-12"
+                placeholder="your@email.com"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Пароль
+            </label>
+            <div className="relative">
+              <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-500" />
+              <input
+                type="password"
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                required
+                className="input-field pl-12"
+                placeholder="••••••••"
+              />
+            </div>
+          </div>
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            type="submit"
+            disabled={isLoading}
+            className="w-full btn-primary flex items-center justify-center space-x-2"
+          >
+            {isLoading ? (
+              <span>Вход...</span>
+            ) : (
+              <>
+                <span>Войти</span>
+                <ArrowRight className="w-5 h-5" />
+              </>
+            )}
+          </motion.button>
+        </form>
+        
+        <p className="mt-6 text-center text-gray-600 dark:text-gray-400">
+          Нет аккаунта?{' '}
+          <Link to="/register" className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium">
+            Зарегистрироваться
+          </Link>
+        </p>
+      </motion.div>
+    </motion.div>
   )
 }

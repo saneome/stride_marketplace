@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.security import OAuth2PasswordRequestForm, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel, EmailStr
@@ -10,6 +10,7 @@ from app.models.user import User
 from app.config import settings
 
 router = APIRouter()
+security = HTTPBearer()
 
 
 class RegisterRequest(BaseModel):
@@ -104,3 +105,27 @@ async def login(
             "avatarUrl": user.avatar_url,
         }
     )
+
+
+@router.post("/logout")
+async def logout(
+    token: str = Depends(security)
+):
+    """Logout user by blacklisting token"""
+    from app.security import get_redis_client
+    
+    try:
+        redis_client = await get_redis_client()
+        # Add token to blacklist with TTL equal to token expiration
+        # We'll use 15 minutes (same as ACCESS_TOKEN_EXPIRE_MINUTES)
+        await redis_client.setex(
+            f"blacklist:{token}",
+            settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+            "1"
+        )
+        return {"message": "Successfully logged out"}
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Logout failed: {str(e)}"
+        )

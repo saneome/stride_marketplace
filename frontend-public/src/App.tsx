@@ -1,4 +1,5 @@
 import { Routes, Route } from 'react-router-dom'
+import { Toaster } from 'react-hot-toast'
 import Header from './components/Header'
 import Home from './pages/Home'
 import Listings from './pages/Listings'
@@ -10,7 +11,7 @@ import CreateListing from './pages/CreateListing'
 
 function App() {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen">
       <Header />
       <main className="container mx-auto px-4 py-8">
         <Routes>
@@ -23,6 +24,31 @@ function App() {
           <Route path="/listings/create" element={<CreateListing />} />
         </Routes>
       </main>
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          duration: 4000,
+          style: {
+            background: 'white',
+            color: '#374151',
+            padding: '16px',
+            borderRadius: '12px',
+            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+          },
+          success: {
+            iconTheme: {
+              primary: '#10B981',
+              secondary: '#fff',
+            },
+          },
+          error: {
+            iconTheme: {
+              primary: '#EF4444',
+              secondary: '#fff',
+            },
+          },
+        }}
+      />
     </div>
   )
 }

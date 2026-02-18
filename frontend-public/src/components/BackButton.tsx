@@ -1,27 +1,19 @@
 import { useNavigate } from 'react-router-dom'
+import { motion } from 'framer-motion'
+import { ArrowLeft } from 'lucide-react'
 
 export default function BackButton() {
   const navigate = useNavigate()
 
   return (
-    <button
+    <motion.button
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.95 }}
       onClick={() => navigate(-1)}
-      className="flex items-center space-x-2 text-gray-600 hover:text-blue-600 transition-colors mb-4"
+      className="flex items-center space-x-2 text-gray-600 hover:text-blue-600 transition-colors mb-6 group"
     >
-      <svg
-        className="w-5 h-5"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={2}
-          d="M15 19l-7-7 7-7"
-        />
-      </svg>
-      <span>Назад</span>
-    </button>
+      <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform duration-300" />
+      <span className="font-medium">Назад</span>
+    </motion.button>
   )
 }
