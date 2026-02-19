@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
@@ -126,3 +126,19 @@ app.include_router(admin_users.router, prefix="/admin/api/v1/users", tags=["admi
 app.include_router(admin_categories.router, prefix="/admin/api/v1/categories", tags=["admin-categories"])
 app.include_router(audit.router, prefix="/admin/api/v1/audit", tags=["admin-audit"])
 app.include_router(stats.router, prefix="/admin/api/v1/stats", tags=["admin-stats"])
+
+
+# Serve uploaded files from MinIO
+from fastapi.responses import StreamingResponse
+from app.utils.upload import MinIOClient
+
+@app.get("/uploads/{object_name:path}")
+async def serve_upload(object_name: str):
+    """Serve uploaded files from MinIO storage."""
+    minio = MinIOClient()
+    try:
+        response = minio.client.get_object(minio.bucket, object_name)
+        content_type = response.headers.get("Content-Type", "application/octet-stream")
+        return StreamingResponse(response, media_type=content_type)
+    except Exception:
+        raise HTTPException(status_code=404, detail="File not found")

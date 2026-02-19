@@ -15,6 +15,7 @@ services:
       target: development
     volumes:
       - ./backend/app:/app/app
+      - ./backend/seed.py:/app/seed.py
     environment:
       - DEBUG=true
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload

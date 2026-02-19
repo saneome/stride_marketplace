@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, User, Mail, Phone, Lock, Camera, Save, Eye, EyeOff } from 'lucide-react'
 import { useAuthStore } from '../store/authStore'
 import toast from 'react-hot-toast'
 import { CheckIcon } from './icons/CheckIcon'
+import AvatarCropModal from './AvatarCropModal'
 
 interface ProfileSettingsProps {
   isOpen: boolean
@@ -29,6 +30,61 @@ export default function ProfileSettings({ isOpen, onClose }: ProfileSettingsProp
     newPassword: '',
     confirmPassword: '',
   })
+
+  // Avatar upload state
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [cropImage, setCropImage] = useState<string | null>(null)
+  const [avatarLoading, setAvatarLoading] = useState(false)
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      toast.error('Выберите изображение')
+      return
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('Файл слишком большой (макс. 10 МБ)')
+      return
+    }
+    setCropImage(URL.createObjectURL(file))
+    // Reset input so the same file can be selected again
+    e.target.value = ''
+  }
+
+  const handleAvatarUpload = async (blob: Blob) => {
+    setAvatarLoading(true)
+    try {
+      const token = localStorage.getItem('access_token')
+      if (!token) throw new Error('Токен не найден')
+
+      const formData = new FormData()
+      formData.append('file', blob, 'avatar.jpg')
+
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/v1/users/me/avatar`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData,
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.detail || 'Ошибка загрузки аватара')
+      }
+
+      const data = await response.json()
+      updateUser({ avatarUrl: data.avatarUrl })
+      toast.success('Аватар обновлён')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Ошибка загрузки аватара')
+    } finally {
+      setAvatarLoading(false)
+      if (cropImage) {
+        URL.revokeObjectURL(cropImage)
+        setCropImage(null)
+      }
+    }
+  }
 
   const handleProfileSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -160,29 +216,29 @@ export default function ProfileSettings({ isOpen, onClose }: ProfileSettingsProp
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               transition={{ duration: 0.2 }}
-              className="bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+              className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
             >
             {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-gray-100">
+            <div className="flex items-center justify-between p-6 border-b border-gray-100 dark:border-slate-700">
               <h2 className="text-2xl font-bold gradient-text">Настройки профиля</h2>
               <motion.button
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
                 onClick={onClose}
-                className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
+                className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-xl transition-colors"
               >
-                <X className="w-6 h-6 text-gray-500" />
+                <X className="w-6 h-6 text-gray-500 dark:text-gray-400" />
               </motion.button>
             </div>
 
             {/* Tabs */}
-            <div className="flex border-b border-gray-100">
+            <div className="flex border-b border-gray-100 dark:border-slate-700">
               <button
                 onClick={() => setActiveTab('profile')}
                 className={`flex-1 py-4 px-6 font-medium transition-colors ${
                   activeTab === 'profile'
-                    ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/50'
-                    : 'text-gray-600 hover:text-gray-800'
+                    ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/50 dark:text-blue-400 dark:border-blue-400 dark:bg-blue-950/50'
+                    : 'text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200'
                 }`}
               >
                 Профиль
@@ -191,8 +247,8 @@ export default function ProfileSettings({ isOpen, onClose }: ProfileSettingsProp
                 onClick={() => setActiveTab('password')}
                 className={`flex-1 py-4 px-6 font-medium transition-colors ${
                   activeTab === 'password'
-                    ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/50'
-                    : 'text-gray-600 hover:text-gray-800'
+                    ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/50 dark:text-blue-400 dark:border-blue-400 dark:bg-blue-950/50'
+                    : 'text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200'
                 }`}
               >
                 Безопасность
@@ -204,11 +260,18 @@ export default function ProfileSettings({ isOpen, onClose }: ProfileSettingsProp
               {activeTab === 'profile' ? (
                 <form onSubmit={handleProfileSubmit} className="space-y-6">
                   {/* Avatar */}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={handleFileSelect}
+                    className="hidden"
+                  />
                   <div className="flex items-center space-x-6">
                     <div className="relative">
                       <div className="w-24 h-24 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center shadow-xl">
                         {user?.avatarUrl ? (
-                          <img src={user.avatarUrl} alt="Avatar" className="w-full h-full rounded-full object-cover" />
+                          <img src={`${import.meta.env.VITE_API_URL}${user.avatarUrl}`} alt="Avatar" className="w-full h-full rounded-full object-cover" />
                         ) : (
                           <User className="w-12 h-12 text-white" />
                         )}
@@ -217,22 +280,35 @@ export default function ProfileSettings({ isOpen, onClose }: ProfileSettingsProp
                         whileHover={{ scale: 1.1 }}
                         whileTap={{ scale: 0.9 }}
                         type="button"
-                        className="absolute bottom-0 right-0 w-8 h-8 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-gray-50 transition-colors"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="absolute bottom-0 right-0 w-8 h-8 bg-white dark:bg-slate-700 rounded-full shadow-lg flex items-center justify-center hover:bg-gray-50 dark:hover:bg-slate-600 transition-colors"
                       >
-                        <Camera className="w-4 h-4 text-gray-600" />
+                        <Camera className="w-4 h-4 text-gray-600 dark:text-gray-300" />
                       </motion.button>
                     </div>
                     <div>
-                      <h3 className="font-semibold text-gray-800 mb-1">Фото профиля</h3>
-                      <p className="text-sm text-gray-500">JPG, PNG или GIF. Максимум 5 МБ</p>
+                      <h3 className="font-semibold text-gray-800 dark:text-gray-200 mb-1">Фото профиля</h3>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">JPG, PNG или WebP. Максимум 5 МБ</p>
                     </div>
                   </div>
+
+                  {cropImage && (
+                    <AvatarCropModal
+                      image={cropImage}
+                      loading={avatarLoading}
+                      onConfirm={handleAvatarUpload}
+                      onClose={() => {
+                        URL.revokeObjectURL(cropImage)
+                        setCropImage(null)
+                      }}
+                    />
+                  )}
 
                   {/* Form Fields */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center space-x-2">
-                        <User className="w-4 h-4 text-blue-600" />
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center space-x-2">
+                        <User className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                         <span>Имя</span>
                       </label>
                       <input
@@ -245,8 +321,8 @@ export default function ProfileSettings({ isOpen, onClose }: ProfileSettingsProp
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center space-x-2">
-                        <User className="w-4 h-4 text-blue-600" />
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center space-x-2">
+                        <User className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                         <span>Фамилия</span>
                       </label>
                       <input
@@ -260,8 +336,8 @@ export default function ProfileSettings({ isOpen, onClose }: ProfileSettingsProp
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center space-x-2">
-                      <Mail className="w-4 h-4 text-blue-600" />
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center space-x-2">
+                      <Mail className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                       <span>Email</span>
                     </label>
                     <input
@@ -275,8 +351,8 @@ export default function ProfileSettings({ isOpen, onClose }: ProfileSettingsProp
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center space-x-2">
-                      <Phone className="w-4 h-4 text-blue-600" />
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center space-x-2">
+                      <Phone className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                       <span>Телефон</span>
                     </label>
                     <input
@@ -301,12 +377,12 @@ export default function ProfileSettings({ isOpen, onClose }: ProfileSettingsProp
                 </form>
               ) : (
                 <form onSubmit={handlePasswordSubmit} className="space-y-6">
-                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                  <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-xl p-4">
                     <div className="flex items-start space-x-3">
-                      <Lock className="w-5 h-5 text-blue-600 mt-0.5" />
+                      <Lock className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5" />
                       <div>
-                        <h4 className="font-semibold text-blue-800 mb-1">Безопасность</h4>
-                        <p className="text-sm text-blue-700">
+                        <h4 className="font-semibold text-blue-800 dark:text-blue-300 mb-1">Безопасность</h4>
+                        <p className="text-sm text-blue-700 dark:text-blue-400">
                           Рекомендуется использовать сложный пароль длиной минимум 8 символов,
                           включающий буквы, цифры и специальные символы.
                         </p>
@@ -315,8 +391,8 @@ export default function ProfileSettings({ isOpen, onClose }: ProfileSettingsProp
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center space-x-2">
-                      <Lock className="w-4 h-4 text-blue-600" />
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center space-x-2">
+                      <Lock className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                       <span>Текущий пароль</span>
                     </label>
                     <div className="relative">
@@ -331,7 +407,7 @@ export default function ProfileSettings({ isOpen, onClose }: ProfileSettingsProp
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
                       >
                         {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                       </button>
@@ -339,8 +415,8 @@ export default function ProfileSettings({ isOpen, onClose }: ProfileSettingsProp
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center space-x-2">
-                      <Lock className="w-4 h-4 text-blue-600" />
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center space-x-2">
+                      <Lock className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                       <span>Новый пароль</span>
                     </label>
                     <div className="relative">
@@ -356,7 +432,7 @@ export default function ProfileSettings({ isOpen, onClose }: ProfileSettingsProp
                       <button
                         type="button"
                         onClick={() => setShowNewPassword(!showNewPassword)}
-                        className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
                       >
                         {showNewPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                       </button>
@@ -370,8 +446,8 @@ export default function ProfileSettings({ isOpen, onClose }: ProfileSettingsProp
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center space-x-2">
-                      <Lock className="w-4 h-4 text-blue-600" />
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center space-x-2">
+                      <Lock className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                       <span>Подтвердите новый пароль</span>
                     </label>
                     <input

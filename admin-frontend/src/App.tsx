@@ -1,27 +1,47 @@
-import { Routes, Route, BrowserRouter } from 'react-router-dom'
+import { useEffect } from 'react'
+import { Routes, Route, BrowserRouter, Outlet } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import Sidebar from './components/Sidebar'
+import ProtectedRoute from './components/ProtectedRoute'
 import Dashboard from './pages/Dashboard'
 import ListingsModeration from './pages/ListingsModeration'
 import UsersManagement from './pages/UsersManagement'
 import CategoriesManagement from './pages/CategoriesManagement'
 import AuditLog from './pages/AuditLog'
 
-function App() {
+function RedirectToPublic404() {
+  useEffect(() => {
+    window.location.replace('/not-found')
+  }, [])
+  return null
+}
+
+function AdminLayout() {
   return (
-    <BrowserRouter basename="/admin">
+    <ProtectedRoute>
       <div className="flex min-h-screen">
         <Sidebar />
         <main className="flex-1 p-8 overflow-auto">
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/listings" element={<ListingsModeration />} />
-            <Route path="/users" element={<UsersManagement />} />
-            <Route path="/categories" element={<CategoriesManagement />} />
-            <Route path="/audit" element={<AuditLog />} />
-          </Routes>
+          <Outlet />
         </main>
       </div>
+    </ProtectedRoute>
+  )
+}
+
+function App() {
+  return (
+    <BrowserRouter basename="/admin">
+      <Routes>
+        <Route element={<AdminLayout />}>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/listings" element={<ListingsModeration />} />
+          <Route path="/users" element={<UsersManagement />} />
+          <Route path="/categories" element={<CategoriesManagement />} />
+          <Route path="/audit" element={<AuditLog />} />
+        </Route>
+        <Route path="*" element={<RedirectToPublic404 />} />
+      </Routes>
       <Toaster
         position="top-right"
         toastOptions={{

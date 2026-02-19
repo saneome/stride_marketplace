@@ -224,7 +224,7 @@ export default function Home() {
                   to={`/listings/${listing.id}`}
                   className="glass-card overflow-hidden card-hover block"
                 >
-                  <div className="aspect-square bg-gradient-to-br from-gray-100 to-gray-200 relative overflow-hidden">
+                  <div className="aspect-square bg-gradient-to-br from-gray-100 to-gray-200 dark:from-slate-700 dark:to-slate-600 relative overflow-hidden">
                     {listing.imageUrl ? (
                       <img
                         src={listing.imageUrl}

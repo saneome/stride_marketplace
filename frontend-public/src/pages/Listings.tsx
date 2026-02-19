@@ -203,7 +203,7 @@ export default function Listings() {
                 to={`/listings/${listing.id}`}
                 className="glass-card overflow-hidden card-hover block"
               >
-                <div className="aspect-video bg-gradient-to-br from-gray-100 to-gray-200 relative overflow-hidden">
+                <div className="aspect-video bg-gradient-to-br from-gray-100 to-gray-200 dark:from-slate-700 dark:to-slate-600 relative overflow-hidden">
                   {listing.imageUrl ? (
                     <img
                       src={listing.imageUrl}
@@ -212,10 +212,10 @@ export default function Listings() {
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
-                      <Bike className="w-16 h-16 text-gray-400" />
+                      <Bike className="w-16 h-16 text-gray-400 dark:text-gray-500" />
                     </div>
                   )}
-                  <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-sm font-bold text-gray-800 shadow-lg">
+                  <div className="absolute top-3 right-3 bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm px-3 py-1 rounded-full text-sm font-bold text-gray-800 dark:text-gray-100 shadow-lg">
                     {formatPrice(listing.price, listing.currency)}
                   </div>
                   <div className="absolute bottom-3 left-3 flex items-center space-x-1 bg-black/50 backdrop-blur-sm px-2 py-1 rounded-full text-white text-xs">
@@ -225,20 +225,20 @@ export default function Listings() {
                 </div>
                 <div className="p-5">
                   <div className="flex items-center gap-2 mb-3">
-                    <span className="text-xs px-3 py-1 bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700 rounded-full font-medium">
+                    <span className="text-xs px-3 py-1 bg-gradient-to-r from-blue-100 to-purple-100 dark:from-blue-900/30 dark:to-purple-900/30 text-blue-700 dark:text-blue-400 rounded-full font-medium">
                       {listing.category}
                     </span>
-                    <span className="text-xs px-3 py-1 bg-gradient-to-r from-green-100 to-emerald-100 text-green-700 rounded-full font-medium">
+                    <span className="text-xs px-3 py-1 bg-gradient-to-r from-green-100 to-emerald-100 dark:from-green-900/30 dark:to-emerald-900/30 text-green-700 dark:text-green-400 rounded-full font-medium">
                       {getConditionLabel(listing.condition)}
                     </span>
                   </div>
-                  <h3 className="font-semibold text-gray-800 mb-2 line-clamp-2 text-lg">
+                  <h3 className="font-semibold text-gray-800 dark:text-gray-200 mb-2 line-clamp-2 text-lg">
                     {listing.title}
                   </h3>
-                  <p className="text-gray-600 text-sm mb-4 line-clamp-2">
+                  <p className="text-gray-600 dark:text-gray-400 text-sm mb-4 line-clamp-2">
                     {listing.description}
                   </p>
-                  <div className="flex items-center justify-between pt-3 border-t border-gray-100 text-sm text-gray-500">
+                  <div className="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-slate-700 text-sm text-gray-500 dark:text-gray-400">
                     {listing.location && (
                       <span className="flex items-center space-x-1">
                         <MapPin className="w-4 h-4" />

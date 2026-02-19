@@ -1,14 +1,17 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Security
+from fastapi import APIRouter, Depends, HTTPException, status, Security, UploadFile, File
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel
 from typing import Optional
+import structlog
 
 from app.database import get_db
 from app.models.user import User
 from app.security import get_current_user
 from app.security import verify_password, get_password_hash
+from app.utils.upload import MinIOClient
+from app.utils.resize import create_thumbnail, validate_image_type
 
 router = APIRouter()
 security = HTTPBearer()
@@ -143,6 +146,55 @@ async def update_password(
     await db.commit()
     
     return {"message": "Password updated successfully"}
+
+
+MAX_AVATAR_SIZE = 5 * 1024 * 1024  # 5 MB
+
+logger = structlog.get_logger()
+
+
+@router.post("/me/avatar")
+async def upload_avatar(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user_from_token),
+    db: AsyncSession = Depends(get_db),
+):
+    """Upload or replace user avatar."""
+    if not validate_image_type(file.content_type):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Недопустимый тип файла. Разрешены: JPEG, PNG, WebP",
+        )
+
+    file_data = await file.read()
+    if len(file_data) > MAX_AVATAR_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Файл превышает 5 МБ",
+        )
+
+    # Resize to 300x300 WEBP
+    avatar_data = create_thumbnail(file_data, (300, 300))
+
+    minio_client = MinIOClient()
+    object_name = f"avatars/{minio_client.generate_object_name(file.filename or 'avatar.jpg')}"
+    # Ensure .webp extension since we convert
+    object_name = object_name.rsplit(".", 1)[0] + ".webp"
+    avatar_url = await minio_client.upload_file(avatar_data, object_name, "image/webp")
+
+    # Delete old avatar if exists
+    if current_user.avatar_url:
+        old_object = current_user.avatar_url.removeprefix("/uploads/")
+        try:
+            await minio_client.delete_file(old_object)
+        except Exception:
+            logger.warning("Failed to delete old avatar", old_url=current_user.avatar_url)
+
+    current_user.avatar_url = avatar_url
+    await db.commit()
+    await db.refresh(current_user)
+
+    return {"avatarUrl": current_user.avatar_url}
 
 
 @router.get("/{user_id}/listings")

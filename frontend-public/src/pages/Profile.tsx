@@ -125,7 +125,7 @@ export default function Profile() {
               className="w-24 h-24 mx-auto mb-4 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center shadow-xl"
             >
               {user.avatarUrl ? (
-                <img src={user.avatarUrl} alt={displayName} className="w-full h-full rounded-full object-cover" />
+                <img src={`${import.meta.env.VITE_API_URL}${user.avatarUrl}`} alt={displayName} className="w-full h-full rounded-full object-cover" />
               ) : (
                 <User className="w-12 h-12 text-white" />
               )}

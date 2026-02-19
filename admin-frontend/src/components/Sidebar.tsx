@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { LayoutDashboard, FileText, Users, FolderOpen, ClipboardList, Settings, LogOut } from 'lucide-react'
+import { LayoutDashboard, FileText, Users, FolderOpen, ClipboardList, Settings } from 'lucide-react'
 import { ThemeToggle } from './ThemeToggle'
 
 export default function Sidebar() {
@@ -76,14 +76,6 @@ export default function Sidebar() {
         >
           <Settings className="w-5 h-5" />
           <span>Настройки</span>
-        </motion.button>
-        <motion.button
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          className="flex items-center space-x-3 px-4 py-3 w-full rounded-xl hover:bg-red-600/20 dark:hover:bg-red-600/20 hover:text-red-400 dark:hover:text-red-400 transition-all duration-300 text-gray-300 dark:text-gray-400 mt-2"
-        >
-          <LogOut className="w-5 h-5" />
-          <span>Выйти</span>
         </motion.button>
       </div>
     </aside>

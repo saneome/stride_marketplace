@@ -1,4 +1,4 @@
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, Outlet } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import Header from './components/Header'
 import Home from './pages/Home'
@@ -8,13 +8,24 @@ import Login from './pages/Login'
 import Register from './pages/Register'
 import Profile from './pages/Profile'
 import CreateListing from './pages/CreateListing'
+import NotFound from './pages/NotFound'
 
-function App() {
+function MainLayout() {
   return (
     <div className="min-h-screen">
       <Header />
       <main className="container mx-auto px-4 py-8">
-        <Routes>
+        <Outlet />
+      </main>
+    </div>
+  )
+}
+
+function App() {
+  return (
+    <>
+      <Routes>
+        <Route element={<MainLayout />}>
           <Route path="/" element={<Home />} />
           <Route path="/listings" element={<Listings />} />
           <Route path="/listings/:id" element={<ListingDetail />} />
@@ -22,8 +33,9 @@ function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/listings/create" element={<CreateListing />} />
-        </Routes>
-      </main>
+        </Route>
+        <Route path="*" element={<NotFound />} />
+      </Routes>
       <Toaster
         position="top-right"
         toastOptions={{
@@ -49,7 +61,7 @@ function App() {
           },
         }}
       />
-    </div>
+    </>
   )
 }
 
