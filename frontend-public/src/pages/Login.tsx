@@ -1,13 +1,12 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { motion } from 'framer-motion'
 import { Mail, Lock, ArrowRight, Bike } from 'lucide-react'
 import { useAuthStore } from '../store/authStore'
 
 export default function Login() {
   const navigate = useNavigate()
   const { login, isLoading, error, clearError } = useAuthStore()
-  
+
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -16,7 +15,7 @@ export default function Login() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     clearError()
-    
+
     try {
       await login(formData.email, formData.password)
       navigate('/')
@@ -33,100 +32,80 @@ export default function Login() {
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-      className="max-w-md mx-auto"
-    >
+    <div className="max-w-sm mx-auto pt-8">
       <div className="text-center mb-8">
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-          className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center shadow-xl"
-        >
-          <Bike className="w-10 h-10 text-white" />
-        </motion.div>
-        <h1 className="text-4xl font-bold gradient-text mb-2">Добро пожаловать</h1>
-        <p className="text-gray-600 dark:text-gray-400">Войдите в свой аккаунт SportMarket</p>
+        <div className="w-12 h-12 mx-auto mb-4 bg-neutral-900 dark:bg-white rounded-xl flex items-center justify-center">
+          <Bike className="w-6 h-6 text-white dark:text-neutral-900" />
+        </div>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">Добро пожаловать</h1>
+        <p className="text-sm text-gray-500 dark:text-gray-400">Войдите в свой аккаунт 頂点Stride</p>
       </div>
-      
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.5, delay: 0.2 }}
-        className="glass-card p-8"
-      >
+
+      <div className="glass-card p-6">
         {error && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-6 p-4 bg-red-50/80 dark:bg-red-900/20 backdrop-blur-sm border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 rounded-xl"
-          >
+          <div className="mb-5 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 rounded-xl text-sm">
             {error}
-          </motion.div>
+          </div>
         )}
-        
-        <form onSubmit={handleSubmit} className="space-y-6">
+
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
               Email
             </label>
             <div className="relative">
-              <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-500" />
+              <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
                 type="email"
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
                 required
-                className="input-field pl-12"
+                className="input-field pl-10"
                 placeholder="your@email.com"
               />
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
               Пароль
             </label>
             <div className="relative">
-              <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-500" />
+              <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
                 type="password"
                 name="password"
                 value={formData.password}
                 onChange={handleChange}
                 required
-                className="input-field pl-12"
+                className="input-field pl-10"
                 placeholder="••••••••"
               />
             </div>
           </div>
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
+          <button
             type="submit"
             disabled={isLoading}
-            className="w-full btn-primary flex items-center justify-center space-x-2"
+            className="w-full btn-primary flex items-center justify-center gap-2"
           >
             {isLoading ? (
               <span>Вход...</span>
             ) : (
               <>
                 <span>Войти</span>
-                <ArrowRight className="w-5 h-5" />
+                <ArrowRight className="w-4 h-4" />
               </>
             )}
-          </motion.button>
+          </button>
         </form>
-        
-        <p className="mt-6 text-center text-gray-600 dark:text-gray-400">
+
+        <p className="mt-5 text-center text-sm text-gray-500 dark:text-gray-400">
           Нет аккаунта?{' '}
-          <Link to="/register" className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium">
+          <Link to="/register" className="text-gray-900 dark:text-white font-medium hover:underline">
             Зарегистрироваться
           </Link>
         </p>
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   )
 }

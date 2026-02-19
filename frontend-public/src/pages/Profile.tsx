@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
 import { User, Mail, Phone, MapPin, Calendar, Settings, LogOut, Bike, Heart, MessageSquare, Edit } from 'lucide-react'
 import { useAuthStore } from '../store/authStore'
 import { useNavigate } from 'react-router-dom'
@@ -105,31 +104,20 @@ export default function Profile() {
   const fullName = [user.firstName, user.lastName].filter(Boolean).join(' ') || displayName
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-    >
+    <div>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Profile Card */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-          className="lg:col-span-1"
-        >
+        <div className="lg:col-span-1">
           <div className="glass-card p-6 text-center">
-            <motion.div
-              animate={{ rotate: 360 }}
-              transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-              className="w-24 h-24 mx-auto mb-4 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center shadow-xl"
+            <div
+              className="w-24 h-24 mx-auto mb-4 bg-neutral-900 dark:bg-white rounded-full flex items-center justify-center shadow-xl"
             >
               {user.avatarUrl ? (
                 <img src={`${import.meta.env.VITE_API_URL}${user.avatarUrl}`} alt={displayName} className="w-full h-full rounded-full object-cover" />
               ) : (
-                <User className="w-12 h-12 text-white" />
+                <User className="w-12 h-12 text-white dark:text-neutral-900" />
               )}
-            </motion.div>
+            </div>
             <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-1">{fullName}</h2>
             <p className="text-gray-500 dark:text-gray-400 mb-4">{user.email}</p>
             <div className="flex items-center justify-center space-x-2 text-sm text-gray-600 dark:text-gray-400 mb-6">
@@ -138,15 +126,15 @@ export default function Profile() {
             </div>
             <div className="grid grid-cols-3 gap-4 mb-6">
               <div className="text-center">
-                <div className="text-2xl font-bold gradient-text">{stats.listingsCount}</div>
+                <div className="text-2xl font-bold text-gray-900 dark:text-white">{stats.listingsCount}</div>
                 <div className="text-xs text-gray-500 dark:text-gray-400">Объявлений</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold gradient-text">{stats.totalViews}</div>
+                <div className="text-2xl font-bold text-gray-900 dark:text-white">{stats.totalViews}</div>
                 <div className="text-xs text-gray-500 dark:text-gray-400">Просмотров</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold gradient-text">{stats.favoritesCount}</div>
+                <div className="text-2xl font-bold text-gray-900 dark:text-white">{stats.favoritesCount}</div>
                 <div className="text-xs text-gray-500 dark:text-gray-400">Избранное</div>
               </div>
             </div>
@@ -167,28 +155,23 @@ export default function Profile() {
               </button>
             </div>
           </div>
-        </motion.div>
+        </div>
 
         {/* Main Content */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.3 }}
-          className="lg:col-span-2 space-y-6"
-        >
+        <div className="lg:col-span-2 space-y-6">
           {/* Contact Info */}
           <div className="glass-card p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200">Контактная информация</h3>
-              <button className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 flex items-center space-x-1 text-sm font-medium">
+              <button className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white flex items-center space-x-1 text-sm font-medium">
                 <Edit className="w-4 h-4" />
                 <span>Редактировать</span>
               </button>
             </div>
             <div className="space-y-4">
               <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center">
-                  <Mail className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                <div className="w-10 h-10 bg-gray-100 dark:bg-neutral-800 rounded-xl flex items-center justify-center">
+                  <Mail className="w-5 h-5 text-gray-600 dark:text-gray-400" />
                 </div>
                 <div>
                   <div className="text-sm text-gray-500 dark:text-gray-400">Email</div>
@@ -196,8 +179,8 @@ export default function Profile() {
                 </div>
               </div>
               <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-xl flex items-center justify-center">
-                  <Phone className="w-5 h-5 text-green-600 dark:text-green-400" />
+                <div className="w-10 h-10 bg-gray-100 dark:bg-neutral-800 rounded-xl flex items-center justify-center">
+                  <Phone className="w-5 h-5 text-gray-600 dark:text-gray-400" />
                 </div>
                 <div>
                   <div className="text-sm text-gray-500 dark:text-gray-400">Телефон</div>
@@ -205,8 +188,8 @@ export default function Profile() {
                 </div>
               </div>
               <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-xl flex items-center justify-center">
-                  <Calendar className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                <div className="w-10 h-10 bg-gray-100 dark:bg-neutral-800 rounded-xl flex items-center justify-center">
+                  <Calendar className="w-5 h-5 text-gray-600 dark:text-gray-400" />
                 </div>
                 <div>
                   <div className="text-sm text-gray-500 dark:text-gray-400">Дата регистрации</div>
@@ -230,10 +213,10 @@ export default function Profile() {
             {loading ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {[...Array(4)].map((_, i) => (
-                  <div key={i} className="bg-gradient-to-br from-gray-50 to-white dark:from-slate-800 dark:to-slate-700 rounded-xl p-4 border border-gray-100 dark:border-slate-700 animate-pulse">
-                    <div className="aspect-square bg-gray-200 dark:bg-slate-600 rounded-lg mb-3" />
-                    <div className="h-4 bg-gray-200 dark:bg-slate-600 rounded mb-2" />
-                    <div className="h-3 bg-gray-200 dark:bg-slate-600 rounded w-1/2" />
+                  <div key={i} className="bg-gray-50 dark:bg-neutral-800 rounded-xl p-4 border border-gray-100 dark:border-neutral-700 animate-pulse">
+                    <div className="aspect-square bg-gray-200 dark:bg-neutral-700 rounded-lg mb-3" />
+                    <div className="h-4 bg-gray-200 dark:bg-neutral-700 rounded mb-2" />
+                    <div className="h-3 bg-gray-200 dark:bg-neutral-700 rounded w-1/2" />
                   </div>
                 ))}
               </div>
@@ -251,13 +234,12 @@ export default function Profile() {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {listings.map((listing) => (
-                  <motion.div
+                  <div
                     key={listing.id}
-                    whileHover={{ scale: 1.02 }}
                     onClick={() => navigate(`/listings/${listing.id}`)}
-                    className="bg-gradient-to-br from-gray-50 to-white dark:from-slate-800 dark:to-slate-700 rounded-xl p-4 border border-gray-100 dark:border-slate-700 hover:shadow-lg transition-all duration-300 cursor-pointer"
+                    className="bg-gray-50 dark:bg-neutral-800 rounded-xl p-4 border border-gray-100 dark:border-neutral-700 hover:shadow-lg transition-all duration-300 cursor-pointer"
                   >
-                    <div className="aspect-square bg-gradient-to-br from-gray-100 to-gray-200 dark:from-slate-700 dark:to-slate-600 rounded-lg mb-3 overflow-hidden">
+                    <div className="aspect-square bg-gray-100 dark:bg-neutral-800 rounded-lg mb-3 overflow-hidden">
                       {listing.imageUrl ? (
                         <img src={listing.imageUrl} alt={listing.title} className="w-full h-full object-cover" />
                       ) : (
@@ -268,14 +250,14 @@ export default function Profile() {
                     </div>
                     <h4 className="font-semibold text-gray-800 dark:text-gray-200 mb-1 line-clamp-1">{listing.title}</h4>
                     <div className="flex items-center justify-between">
-                      <div className="text-sm font-bold text-blue-600 dark:text-blue-400">{formatPrice(listing.price, listing.currency)}</div>
+                      <div className="text-sm font-bold text-gray-600 dark:text-gray-400">{formatPrice(listing.price, listing.currency)}</div>
                       <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center space-x-1">
                         <EyeIcon size={14} className="text-gray-500 dark:text-gray-400" />
                         <span>{listing.viewsCount}</span>
                       </div>
                     </div>
                     <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">{formatDate(listing.createdAt)}</div>
-                  </motion.div>
+                  </div>
                 ))}
               </div>
             )}
@@ -283,40 +265,38 @@ export default function Profile() {
 
           {/* Quick Actions */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <motion.div
-              whileHover={{ scale: 1.02 }}
+            <div
               className="glass-card p-6 cursor-pointer card-hover"
             >
               <div className="flex items-center space-x-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-pink-500 to-rose-500 rounded-xl flex items-center justify-center">
-                  <Heart className="w-6 h-6 text-white" />
+                <div className="w-12 h-12 bg-neutral-900 dark:bg-neutral-100 rounded-xl flex items-center justify-center">
+                  <Heart className="w-6 h-6 text-white dark:text-neutral-900" />
                 </div>
                 <div>
                   <h4 className="font-semibold text-gray-800 dark:text-gray-200">Избранное</h4>
                   <p className="text-sm text-gray-500 dark:text-gray-400">{stats.favoritesCount} товаров</p>
                 </div>
               </div>
-            </motion.div>
-            <motion.div
-              whileHover={{ scale: 1.02 }}
+            </div>
+            <div
               className="glass-card p-6 cursor-pointer card-hover"
             >
               <div className="flex items-center space-x-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center">
-                  <MessageSquare className="w-6 h-6 text-white" />
+                <div className="w-12 h-12 bg-neutral-900 dark:bg-neutral-100 rounded-xl flex items-center justify-center">
+                  <MessageSquare className="w-6 h-6 text-white dark:text-neutral-900" />
                 </div>
                 <div>
                   <h4 className="font-semibold text-gray-800 dark:text-gray-200">Сообщения</h4>
                   <p className="text-sm text-gray-500 dark:text-gray-400">{stats.messagesCount} новых</p>
                 </div>
               </div>
-            </motion.div>
+            </div>
           </div>
-        </motion.div>
+        </div>
       </div>
 
       {/* Settings Modal */}
       <ProfileSettings isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
-    </motion.div>
+    </div>
   )
 }

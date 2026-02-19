@@ -1,11 +1,11 @@
 {
-  "name": "SportMarket - Доска объявлений",
-  "short_name": "SportMarket",
-  "description": "Интернет-магазин для продажи спортивного инвентаря и б/у товаров",
+  "name": "頂点Stride — маркетплейс спортивных товаров",
+  "short_name": "頂点Stride",
+  "description": "Маркетплейс для продажи спортивного инвентаря и б/у товаров",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f9fafb",
-  "theme_color": "#2563eb",
+  "background_color": "#fafafa",
+  "theme_color": "#0a0a0a",
   "orientation": "portrait",
   "scope": "/",
   "icons": [

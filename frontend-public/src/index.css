@@ -18,12 +18,12 @@
   }
 
   body {
-    @apply bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 min-h-screen text-gray-900;
+    @apply bg-gray-50 min-h-screen text-gray-900;
     transition: background-color 0.3s ease, color 0.3s ease;
   }
 
   .dark body {
-    @apply bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-gray-100;
+    @apply bg-neutral-950 text-gray-100;
   }
 
   code {
@@ -38,65 +38,62 @@
 
 @layer components {
   .glass-card {
-    @apply bg-white/70 backdrop-blur-lg border border-white/20 shadow-xl rounded-2xl;
+    @apply bg-white border border-gray-200 shadow-sm rounded-2xl;
     transition: background-color 0.3s ease, border-color 0.3s ease;
   }
 
   .dark .glass-card {
-    @apply bg-slate-800/70 border-slate-700/50;
+    @apply bg-neutral-900 border-neutral-800;
   }
 
   .gradient-text {
-    @apply bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent;
+    @apply text-gray-900;
   }
 
   .dark .gradient-text {
-    @apply bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400;
+    @apply text-white;
   }
 
   .btn-primary {
-    @apply px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-semibold
-           hover:from-blue-700 hover:to-purple-700 transform hover:scale-105 transition-all duration-300
-           shadow-lg hover:shadow-xl;
+    @apply px-6 py-3 bg-neutral-900 text-white rounded-xl font-semibold
+           hover:bg-neutral-800 transition-colors duration-200;
   }
 
   .dark .btn-primary {
-    @apply bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600;
+    @apply bg-white text-neutral-900 hover:bg-neutral-100;
   }
 
   .btn-secondary {
     @apply px-6 py-3 bg-white text-gray-700 rounded-xl font-semibold
-           hover:bg-gray-50 transform hover:scale-105 transition-all duration-300
-           shadow-lg hover:shadow-xl border border-gray-200;
-    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+           hover:bg-gray-50 transition-colors duration-200
+           border border-gray-200;
   }
 
   .dark .btn-secondary {
-    @apply bg-slate-800 text-gray-200 border-slate-700 hover:bg-slate-700;
+    @apply bg-neutral-900 text-gray-200 border-neutral-700 hover:bg-neutral-800;
   }
 
   .card-hover {
-    @apply transform hover:scale-105 transition-all duration-300 hover:shadow-2xl;
+    @apply transition-shadow duration-200 hover:shadow-md;
   }
 
   .input-field {
-    @apply w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500
-           focus:ring-2 focus:ring-blue-200 transition-all duration-300 outline-none;
-    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+    @apply w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-neutral-900
+           focus:ring-2 focus:ring-neutral-900/10 transition-all duration-200 outline-none;
   }
 
   .dark .input-field {
-    @apply bg-slate-800 border-slate-700 text-gray-100 focus:border-blue-400 focus:ring-blue-400/20;
+    @apply bg-neutral-900 border-neutral-700 text-gray-100 focus:border-white focus:ring-white/10;
   }
 }
 
 @layer utilities {
   .text-shadow {
-    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+    text-shadow: none;
   }
 
   .dark .text-shadow {
-    text-shadow: 2px 2px 4px rgba(255, 255, 255, 0.1);
+    text-shadow: none;
   }
 
   .animate-float {
