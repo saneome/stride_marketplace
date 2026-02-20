@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Routes, Route, Outlet } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import Header from './components/Header'
@@ -9,6 +10,7 @@ import Register from './pages/Register'
 import Profile from './pages/Profile'
 import CreateListing from './pages/CreateListing'
 import NotFound from './pages/NotFound'
+import { useAuthStore } from './store/authStore'
 
 function MainLayout() {
   return (
@@ -22,6 +24,12 @@ function MainLayout() {
 }
 
 function App() {
+  const verifyToken = useAuthStore((s) => s.verifyToken)
+
+  useEffect(() => {
+    verifyToken()
+  }, [verifyToken])
+
   return (
     <>
       <Routes>

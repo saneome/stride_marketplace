@@ -18,13 +18,13 @@ interface AuthState {
   isAuthenticated: boolean
   isLoading: boolean
   error: string | null
-  
+
   login: (email: string, password: string) => Promise<void>
   register: (email: string, password: string, firstName: string, lastName?: string) => Promise<void>
   logout: () => void
   clearError: () => void
   updateUser: (userData: Partial<User>) => void
-  updateUser: (userData: Partial<User>) => void
+  verifyToken: () => Promise<void>
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -158,6 +158,38 @@ export const useAuthStore = create<AuthState>()(
         set((state) => ({
           user: state.user ? { ...state.user, ...userData } : null
         }))
+      },
+
+      verifyToken: async () => {
+        const token = localStorage.getItem('access_token')
+        if (!token) {
+          set({ user: null, token: null, isAuthenticated: false })
+          return
+        }
+        try {
+          const response = await fetch(`${import.meta.env.VITE_API_URL}/api/v1/users/me`, {
+            headers: { 'Authorization': `Bearer ${token}` },
+          })
+          if (!response.ok) throw new Error('invalid')
+          const data = await response.json()
+          set({
+            user: {
+              id: data.id,
+              email: data.email,
+              firstName: data.firstName || data.first_name || null,
+              lastName: data.lastName || data.last_name || null,
+              displayName: data.displayName || data.display_name || data.firstName || data.first_name || null,
+              phone: data.phone || null,
+              avatarUrl: data.avatarUrl || data.avatar_url || null,
+              createdAt: data.createdAt || data.created_at,
+            },
+            token,
+            isAuthenticated: true,
+          })
+        } catch {
+          localStorage.removeItem('access_token')
+          set({ user: null, token: null, isAuthenticated: false })
+        }
       },
     }),
     {
