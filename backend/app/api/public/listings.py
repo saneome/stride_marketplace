@@ -44,6 +44,14 @@ class ListingCreate(BaseModel):
     location: str
 
 
+class ListingUpdate(BaseModel):
+    title: str | None = None
+    description: str | None = None
+    price: float | None = None
+    condition: str | None = None
+    location: str | None = None
+
+
 class ListingImageResponse(BaseModel):
     id: str
     url: str
@@ -365,3 +373,99 @@ async def upload_listing_images(
 
     await db.commit()
     return {"images": uploaded}
+
+
+@router.put("/{listing_id}", response_model=ListingResponse)
+async def update_listing(
+    listing_id: UUID,
+    update_data: ListingUpdate,
+    credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer()),
+    db: AsyncSession = Depends(get_db),
+):
+    """Обновить своё объявление"""
+    current_user = await get_current_user(credentials.credentials, db)
+
+    result = await db.execute(
+        select(Listing)
+        .options(selectinload(Listing.images), selectinload(Listing.category), selectinload(Listing.author))
+        .where(Listing.id == listing_id)
+    )
+    listing = result.scalar_one_or_none()
+
+    if not listing:
+        raise HTTPException(status_code=404, detail="Объявление не найдено")
+    if listing.author_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Нет прав на редактирование")
+
+    if update_data.title is not None:
+        listing.title = update_data.title
+    if update_data.description is not None:
+        listing.description = update_data.description
+    if update_data.price is not None:
+        listing.price = update_data.price
+    if update_data.condition is not None:
+        listing.condition = ListingCondition(update_data.condition)
+    if update_data.location is not None:
+        listing.location = update_data.location
+
+    await db.commit()
+    await db.refresh(listing)
+
+    first_image = listing.images[0].url if listing.images else None
+    category_name = listing.category.name if listing.category else None
+
+    seller_data = {
+        "id": str(current_user.id),
+        "firstName": current_user.display_name,
+        "avatarUrl": current_user.avatar_url,
+    }
+
+    images_data = [
+        ListingImageResponse(
+            id=str(img.id),
+            url=img.url,
+            thumbnailUrl=img.thumbnail_url,
+        )
+        for img in sorted(listing.images, key=lambda x: x.sort_order)
+    ] if listing.images else []
+
+    return ListingResponse(
+        id=str(listing.id),
+        title=listing.title,
+        description=listing.description,
+        price=float(listing.price),
+        currency=listing.currency,
+        condition=get_condition_label(listing.condition.value if hasattr(listing.condition, 'value') else listing.condition),
+        category=category_name,
+        category_id=listing.category_id,
+        location=listing.location,
+        imageUrl=first_image,
+        images=images_data,
+        status=listing.status.value if hasattr(listing.status, 'value') else listing.status,
+        viewsCount=listing.views_count,
+        createdAt=listing.created_at.isoformat() if listing.created_at else "",
+        seller=seller_data,
+    )
+
+
+@router.delete("/{listing_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_listing(
+    listing_id: UUID,
+    credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer()),
+    db: AsyncSession = Depends(get_db),
+):
+    """Удалить своё объявление"""
+    current_user = await get_current_user(credentials.credentials, db)
+
+    result = await db.execute(
+        select(Listing).where(Listing.id == listing_id)
+    )
+    listing = result.scalar_one_or_none()
+
+    if not listing:
+        raise HTTPException(status_code=404, detail="Объявление не найдено")
+    if listing.author_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Нет прав на удаление")
+
+    await db.delete(listing)
+    await db.commit()
